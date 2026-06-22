@@ -1,7 +1,72 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
+const { Resend } = require('resend');
 
+// custom  email templates 
+const { getNewApplicationNotificationHTML } = require('../email_templats/applicationReviewNotification.js');
+const { getApplicantConfirmationHTML } = require('../email_templats/applicantConfirmation.js');
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+const GLOBAL_LOGO_URL = "https://thumbs.dreamstime.com/b/polishing-waxing-car-logo-design-auto-detailing-service-orbital-polish-machine-vector-scratch-remove-buffing-logotype-251168071.jpg";
+
+
+async function sendEmails(formData) {
+  // Destructure data
+  const {
+    company_name,
+    commercial_registration_number,
+    company_address,
+    owner_name,
+    owner_email,
+    owner_phone,
+    latitude,
+    longitude,
+    verification_document_url
+  } = formData;
+
+  // email 
+  await Promise.all([
+    // Email 1: internal admin notification of new application
+    resend.emails.send({
+      from: "System <onboarding@resend.dev>",
+      to: "leen99belal@gmail.com",
+      subject: `New Application: ${company_name}`,
+      html: getNewApplicationNotificationHTML(
+        {
+          companyName: company_name,
+          crNumber: commercial_registration_number,
+          companyAddress: company_address,
+          ownerName: owner_name,
+          phone: owner_phone,
+          email: owner_email,
+          latitude,
+          longitude,
+          verification_document_url
+        }, 
+        GLOBAL_LOGO_URL
+      )
+    }),
+
+    // Email 2: Receipt Confirmation for the Applicant
+    resend.emails.send({
+      from: "Partner Onboarding <onboarding@resend.dev>",
+      to: owner_email, // Target email dynamically pulled out of form payload fields
+      subject: "Application Received - Pending Admin Review",
+      html: getApplicantConfirmationHTML(
+        {
+          ownerName: owner_name,
+          companyName: company_name,
+          crNumber: commercial_registration_number,
+          phone: owner_phone,
+          companyAddress: company_address,
+          email: owner_email
+        }, 
+        GLOBAL_LOGO_URL
+      )
+    })
+  ]);
+}
 /**
  * ADMINISTRATIVE ROUTE
  * GET /api/applications/
@@ -25,6 +90,7 @@ router.get('/', async (req, res) => {
   }
 });
 
+ 
 /**
  * B2B PARTNER INTAKE - PHASE 1
  * POST /api/applications/signed-url
@@ -118,6 +184,13 @@ router.post('/submit', async (req, res) => {
       .select();
 
     if (error) throw error;
+   //send email to applicant and admin of new application
+    try {
+      await sendEmails(req.body);
+    } catch (emailError) {
+    
+      console.error("email notification failure:", emailError);
+    }
 
     res.status(201).json({
       success: true,
@@ -129,6 +202,7 @@ router.post('/submit', async (req, res) => {
     console.error("Database Transaction Failure:", error);
     res.status(500).json({ error: "Internal Server Error executing database submission entry." });
   }
+
 });
 
 module.exports = router;
