@@ -22,7 +22,7 @@ app.locals.supabase = supabase;
 app.use('/api/applications', require('./routes/applications'));
 app.use('/api/admin/partners_applications', require('./routes/admin/partners_applications'));
 // app.use('/api/auth', require('./routes/auth.js'));
-// app.use('/api/contact', require('./routes/contactUs.js'));
+app.use('/api/contact', require('./routes/contactUs.js'));
 // app.use('/api/map', require('./routes/map.js'));
 
 // Handle root verification request

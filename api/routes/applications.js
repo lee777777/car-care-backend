@@ -146,7 +146,7 @@ router.post('/submit', async (req, res) => {
   try {
     const supabase = req.app.locals.supabase;
     
-    // Deconstruct fields exactly as mapped by your frontend TanStack Form layout
+    // Deconstruct fields exactly as mapped by the frontend form
     const {
       company_name,
       commercial_registration_number,
