@@ -7,23 +7,24 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const GLOBAL_LOGO_URL = "https://thumbs.dreamstime.com/b/polishing-waxing-car-logo-design-auto-detailing-service-orbital-polish-machine-vector-scratch-remove-buffing-logotype-251168071.jpg";
 
 async function sendEmail(formData) {
-const {name, email, message} = formData;
+const {name, email, subject, message} = formData;
  // email 
-  await Promise(
+ 
     // Email 1: internal admin notification of new contact quiry 
-    resend.emails.send({
+    await resend.emails.send({
       from: "System <onboarding@resend.dev>",
       to: "leen99belal@gmail.com",
-      subject: `New Quiey: ${name}`,
+      subject: `New Quiey: ${subject}`,
       html: getContactUsNotificationHTML(
         {
           name: name,
           email: email,
+          subject: subject,
           message: message
         }, 
         GLOBAL_LOGO_URL
       )
-    }))
+    })
 
 
 }
@@ -33,6 +34,7 @@ router.post('/submit', async (req, res) => {
      const {
       name,
       email,
+      subject,
       message
     } = req.body;
  if (!name || !email || !message) {
@@ -45,6 +47,7 @@ router.post('/submit', async (req, res) => {
         {
           name,
           email,
+          subject,
           message,
           
           status: 'new' // Enforces standard entry state for admin review 
