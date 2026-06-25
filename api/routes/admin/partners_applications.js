@@ -3,8 +3,8 @@ const router = express.Router();
 
 
 /**
- * ADMINISTRATIVE DESK - READ ALL
- * GET /api/admin/partners/applications
+ * Admin Read
+ * GET /api/admin/applications
  * Purpose: Fetches all partner applications for the admin panel overview grid.
  */
 router.get('/', async (req, res) => {
@@ -25,18 +25,17 @@ router.get('/', async (req, res) => {
   }
 });
 /**
- * B2B PARTNER MODERATION DESK
- * POST /api/admin/partners/applications/:id/review
- * Purpose: Approves or declines an incoming partner application row.
+ * B2B Paetner Application Review to accept or decline
+ * POST /api/admin/applications/:id/review
  */
 router.post('/:id/review', async (req, res) => {
   try {
     const supabase = req.app.locals.supabase;
     const { id } = req.params; //The :id from the URL string
-const { action, profile_description, logo_url } = req.body; // Filled out by Admin in the popup modal!
+    const { action} = req.body; // Filled out by Admin in the popup modal!
 
-    if (!["approve", "decline"].includes(action)) {
-      return res.status(400).json({ error: "Invalid action. Must be 'approve' or 'decline'." });
+   if (!["approve", "decline", "pending"].includes(action)) {
+      return res.status(400).json({ error: "Invalid action. Must be 'approve', 'pending' or 'decline'." });
     }
 
     // Fetch the target application record to extract its data payload
@@ -65,9 +64,32 @@ const { action, profile_description, logo_url } = req.body; // Filled out by Adm
       });
     }
 
+    //if admin changed their mind and want it to set it backe to pending
+   if (action === 'pending') {
+      const { error: updateError } = await supabase
+        .from('partner_application')
+        .update({ 
+          status: 'pending', 
+          processed_at: null //  Resets processing stamp
+        })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+
+   const { error: deleteError } = await supabase
+        .from('partner')
+        .delete()
+        .eq('application_id', id); // this is application's unique ID
+
+      if (deleteError) throw deleteError;
+
+      return res.status(200).json({
+        success: true,
+        message: "Application shifted to pending for further evaluation. Associated partner record has been deleted."
+      });}
     // Handle Approval
     if (action === 'approve') {
-      // A. Update intake tracking row status
+      // Update row status
       const { error: appUpdateError } = await supabase
         .from('partner_application')
         .update({ status: 'approved', processed_at: new Date().toISOString() })
@@ -75,7 +97,7 @@ const { action, profile_description, logo_url } = req.body; // Filled out by Adm
 
       if (appUpdateError) throw appUpdateError;
 
-      // B. Migrate application data into the partners table
+      // move application data into the partners table
       const { data: partnerRecord, error: partnerError } = await supabase
         .from('partner')
         .insert([
@@ -83,15 +105,16 @@ const { action, profile_description, logo_url } = req.body; // Filled out by Adm
             application_id: application.id,
             company_name: application.company_name,
             company_address: application.company_address,
-            owner_name: application.owner_name,
-            owner_email: application.owner_email,
-            owner_phone: application.owner_phone,
+            company_number: application.owner_phone,
             latitude: application.latitude,
             longitude: application.longitude,
            // Provided directly by Admin inside the Review Modal body
-            profile_description: profile_description || "Certified Car Care Partner Facility.",
-            logo_url: logo_url || null, 
-            is_active: true
+            company_bio:  "Certified Car Care Partner Facility.",
+            company_logo_url:  null, 
+            is_active: true,
+            info_status: "incomplete",
+            processed_by:  null //
+
           }
         ])
         .select();
@@ -100,14 +123,14 @@ const { action, profile_description, logo_url } = req.body; // Filled out by Adm
 
       return res.status(200).json({
         success: true,
-        message: "Application successfully approved and migrated to active partner directory.",
+        message: "Application successfully approved and migrated to the active partner table.",
         partner: partnerRecord[0]
       });
     }
 
   } catch (error) {
     console.error("Partner Moderation Error:", error);
-    res.status(500).json({ error: "Internal Server Error executing administrative review transition." });
+    res.status(500).json({ error: "Internal Server Error executing admin review." });
   }
 });
 
