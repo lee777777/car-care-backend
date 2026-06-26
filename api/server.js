@@ -21,6 +21,8 @@ app.locals.supabase = supabase;
 // Mounting your sub-routes under the mandatory /api prefix
 app.use('/api/applications', require('./routes/applications'));
 app.use('/api/admin/partners_applications', require('./routes/admin/partners_applications'));
+app.use('/api/admin/partners', require('./routes/admin/partners'));
+app.use('/api/admin/inquiries', require('./routes/admin/inquiries'));
 // app.use('/api/auth', require('./routes/auth.js'));
 app.use('/api/contact', require('./routes/contactUs.js'));
 // app.use('/api/map', require('./routes/map.js'));
