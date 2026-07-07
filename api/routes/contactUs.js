@@ -1,22 +1,23 @@
 const express = require('express');
 const router = express.Router();
-const { Resend } = require('resend');
-
+const { Resend } = require('resend'); //email service
+//html email templat
 const {getContactUsNotificationHTML} = require("../email_templats/contactUsNotification");
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY); //email service key
+//random image for logo from internet
 const GLOBAL_LOGO_URL = "https://thumbs.dreamstime.com/b/polishing-waxing-car-logo-design-auto-detailing-service-orbital-polish-machine-vector-scratch-remove-buffing-logotype-251168071.jpg";
 
 async function sendEmail(formData) {
-const {name, email, subject, message} = formData;
+const {name, email, subject, message} = formData; //destruct data
  // email 
  
     // Email 1: internal admin notification of new contact quiry 
     await resend.emails.send({
       from: "System <onboarding@resend.dev>",
       to: "leen99belal@gmail.com",
-      subject: `New Quiey: ${subject}`,
+      subject: `New Quirey: ${subject}`,
       html: getContactUsNotificationHTML(
-        {
+        { 
           name: name,
           email: email,
           subject: subject,
@@ -36,26 +37,26 @@ router.post('/submit', async (req, res) => {
       email,
       subject,
       message
-    } = req.body;
- if (!name || !email || !message) {
-      return res.status(400).json({ error: "Missing required core application metadata fields." });
+    } = req.body; //user inputs
+ if (!name || !email || !message || !subject) { //if any filed missing
+      return res.status(400).json({ error: "Missing required application fields." });
     }
   // Insert text data payload and asset links into Supabase PostgreSQL
     const { data, error } = await supabase
-      .from('contact_inquiries')
-      .insert([
+      .from('contact_inquiries') // database table
+      .insert([ //create new contact
         {
           name,
           email,
           subject,
           message,
           
-          status: 'new' // Enforces standard entry state for admin review 
+          status: 'new' // standard entry state for admin review 
         }
       ])
       .select();
 
-    if (error) throw error;
+    if (error) throw error; //if error is not null, stop this try block and go to catch block
    //send email to applicant and admin of new application
     try {
       await sendEmail(req.body);
@@ -72,7 +73,7 @@ router.post('/submit', async (req, res) => {
 
   } catch (error) {
     console.error("Database Transaction Failure:", error);
-    res.status(500).json({ error: "Internal Server Error executing database submission entry." });
+    res.status(500).json({ error: "Internal Server Error executing database submission entry." }); //sends server error to frontend
   }
 
 });

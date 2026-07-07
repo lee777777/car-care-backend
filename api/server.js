@@ -1,8 +1,8 @@
-require('dotenv').config();
+require('dotenv').config(); // loads into process.env from .env file
 const express = require('express');
-const cors = require('cors');
-const morgan = require('morgan');
-const { createClient } = require('@supabase/supabase-js');
+const cors = require('cors'); //enabling cross-origin requests so frontend can talk to backend and viseversa
+const morgan = require('morgan'); //logging incoming HTTP requests in terminal
+const { createClient } = require('@supabase/supabase-js'); //Supabase backend database
 
 const app = express();
 
@@ -12,11 +12,11 @@ app.use(express.json());
 app.use(morgan('dev'));
 
 // Instantiating Supabase
-const supabase = createClient(
+const supabase = createClient( 
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
-app.locals.supabase = supabase;
+app.locals.supabase = supabase; //dtatbase open connection globally 
 
 // Mounting your sub-routes under the mandatory /api prefix
 app.use('/api/applications', require('./routes/applications'));
@@ -32,7 +32,7 @@ app.get('/api', (req, res) => {
   res.status(200).json({ status: "healthy", message: "Vercel Serverless Express Engine Operational" });
 });
 
-// CRITICAL ADJUSTMENT: Only listen to explicit ports locally!
+//  Only listen to explicit ports locally!
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
