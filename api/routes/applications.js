@@ -25,7 +25,7 @@ async function sendEmails(formData) {
     verification_document_url
   } = formData;
 
-  // email 
+  //send emails at the same time
   await Promise.all([
     // Email 1: internal admin notification of new application
     resend.emails.send({
@@ -67,34 +67,11 @@ async function sendEmails(formData) {
     })
   ]);
 }
-/**
- * ADMINISTRATIVE ROUTE
- * GET /api/applications/
- * Purpose: Fetches all partner applications from Supabase for the Admin Panel.
- */
-router.get('/', async (req, res) => {
-  try {
-    // Safely pull the active serverless supabase token context
-    const supabase = req.app.locals.supabase; //pulls a single, pre-initialized master Supabase instance that lives in global application memory
-    
-    const { data, error } = await supabase
-      .from('partner_application')
-      .select('*')
-      .order('created_at', { ascending: false }); // Groups newest applications at the top
-
-    if (error) throw error;
-    res.status(200).json(data);
-  } catch (error) {
-    console.error("Administrative Fetch Error:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
 
  
 /**
- * B2B PARTNER INTAKE - PHASE 1
  * POST /api/applications/signed-url
- * Purpose: Generates a secure, temporary write-token for unauthenticated direct client uploads.
+ *  direct client uploads
  */
 router.post('/signed-url', async (req, res) => {
   try {
@@ -105,13 +82,12 @@ router.post('/signed-url', async (req, res) => {
       return res.status(400).json({ error: "Missing filename or fileType in request body." });
     }
 
-    // 1. Generate a clean, randomized folder path to avoid naming collisions
+    //  Generating randomized folder path to avoid naming collisions
     const uniqueId = crypto.randomBytes(4).toString('hex'); // e.g., 'a3b2c1d0'
-    const cleanFileName = filename.replace(/[^a-zA-Z0-9.]/g, '_');
-    const storagePath = `${uniqueId}/${cleanFileName}`;
+    const cleanFileName = filename.replace(/[^a-zA-Z0-9.]/g, '_'); //replaces strange charechters with underscore
+    const storagePath = `${uniqueId}/${cleanFileName}`; //key/filename 
 
-    // 2. Call Supabase Storage Engine to request a temporary Signed Upload URL
-    // This uses your Master Service Role Key safely behind the scenes
+    // Calling Supabase Storage Engine to request a temporary Signed Upload URL
     const { data, error } = await supabase.storage
       .from('application-assets')
       .createSignedUploadUrl(storagePath, {
@@ -120,12 +96,12 @@ router.post('/signed-url', async (req, res) => {
 
     if (error) throw error;
 
-    // 3. Resolve the permanent public/authenticated access URL for this asset path
+    //  Resolve the permanent public/authenticated access URL for this asset path
     const { data: publicUrlData } = supabase.storage
       .from('application-assets')
       .getPublicUrl(storagePath);
 
-    // 4. Return both the signed token write-link and the final structural destination link
+    // Return both the signed token write-link and the final structural destination link
     res.status(200).json({
       signedUrl: data.signedUrl,         // Used by TanStack Query to execute PUT stream
       publicUrl: publicUrlData.publicUrl // Cached by frontend to pass to the /submit step
