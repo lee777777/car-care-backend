@@ -46,27 +46,29 @@ router.post('/:id/review', async (req, res) => {
       .single();
 
     if (fetchError || !application) {
-      return res.status(404).json({ error: "Target partner application record not found." });
+      return res.status(404).json({ error: "Application record not found." });
     }
 
     // Handle Rejection
-    if (action === 'decline') {
-      const { error: updateError } = await supabase
+    switch (action) {
+    case 'decline':{
+      const { error: declineUpdateError } = await supabase
         .from('partner_application')
         .update({ status: 'declined', processed_at: new Date().toISOString() })
         .eq('id', id);
 
-      if (updateError) throw updateError;
+      if (declineUpdateError) return res.status(500).json({ error: "Failed to set status to declined." });
 
       return res.status(200).json({
         success: true,
         message: "Application status updated to declined. Retained for 15-day auditing cycle."
       });
+    
     }
 
     //if admin changed their mind and want it to set it backe to pending
-   if (action === 'pending') {
-      const { error: updateError } = await supabase
+    case 'pending':{
+      const { error: pendingUpdateError } = await supabase
         .from('partner_application')
         .update({ 
           status: 'pending', 
@@ -74,34 +76,37 @@ router.post('/:id/review', async (req, res) => {
         })
         .eq('id', id);
 
-      if (updateError) throw updateError;
+      if (pendingUpdateError) return res.status(500).json({ error: "Failed to set status to pending." });
 
-   const { error: deleteError } = await supabase
+   const { error: deleteError } = await supabase //if it exists in partners table, delete it
         .from('partner')
         .delete()
         .eq('application_id', id); // this is application's unique ID
 
-      if (deleteError) throw deleteError;
+      if (deleteError) return res.status(500).json({ error: "Failed to remove active partner record." });
 
       return res.status(200).json({
         success: true,
         message: "Application shifted to pending for further evaluation. Associated partner record has been deleted."
-      });}
+      });
+     
+    }
+
     // Handle Approval
-    if (action === 'approve') {
+    case'approve':{
       // Update row status
-      const { error: appUpdateError } = await supabase
+      const { error: approveUpdateError } = await supabase
         .from('partner_application')
         .update({ status: 'approved', processed_at: new Date().toISOString() })
         .eq('id', id);
 
-      if (appUpdateError) throw appUpdateError;
+      if (approveUpdateError) return res.status(500).json({ error: "Failed to set status to approve." });
 
       // move application data into the partners table
-      const { data: partnerRecord, error: partnerError } = await supabase
-        .from('partner')
-        .insert([
-          {
+      const { data: partnerRecord, error: upsertPartnerError } = await supabase
+        .from('partner') //inser
+        .upsert( [
+         {
             application_id: application.id,
             company_name: application.company_name,
             company_address: application.company_address,
@@ -115,23 +120,32 @@ router.post('/:id/review', async (req, res) => {
             info_status: "incomplete",
             processed_by:  null //
 
-          }
-        ])
+          }  ],
+         { onConflict: 'application_id'})
         .select();
 
-      if (partnerError) throw partnerError;
-
+      
+     if (upsertPartnerError) {
+        //remove "aaaprove" status and go back to pending
+        await supabase
+        .from('partner_application')
+        .update({ status: 'pending', processed_at: null })
+        .eq('id', id);
+    
+      return res.status(500).json({ error: "Failed to create partner record." });
+    }
       return res.status(200).json({
         success: true,
         message: "Application successfully approved and migrated to the active partner table.",
         partner: partnerRecord[0]
       });
     }
-
-  } catch (error) {
-    console.error("Partner Moderation Error:", error);
-    res.status(500).json({ error: "Internal Server Error executing admin review." });
+    }
   }
+  catch (error) {
+    console.error("Partner Moderation Uncaught Error:", error);
+    return res.status(500).json({ error: "Internal Server Error executing admin review." });
+  } 
 });
 
 module.exports = router;
