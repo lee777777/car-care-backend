@@ -114,9 +114,8 @@ router.post('/signed-url', async (req, res) => {
 });
 
 /**
- * B2B PARTNER INTAKE - PHASE 2
+ * B2B PARTNER submit form
  * POST /api/applications/submit
- * Purpose: Commits clean text metadata and verified storage strings to PostgreSQL.
  */
 router.post('/submit', async (req, res) => {
   try {
