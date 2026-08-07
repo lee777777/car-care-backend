@@ -5,6 +5,7 @@ const morgan = require('morgan'); //logging incoming HTTP requests in terminal
 const { createClient } = require('@supabase/supabase-js'); //Supabase backend database
 
 const app = express();
+app.set('trust proxy', 1);
 
 // Global Middleware Config
 app.use(cors());
