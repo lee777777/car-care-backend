@@ -5,10 +5,35 @@ const morgan = require('morgan'); //logging incoming HTTP requests in terminal
 const { createClient } = require('@supabase/supabase-js'); //Supabase backend database
 
 const app = express();
-app.set('trust proxy', 1);
+app.set('trust proxy', 1); //passes the true client IP provided by NGINX and Cloudflare
 
-// Global Middleware Config
-app.use(cors());
+
+// app.use(cors({
+//   origin: process.env.FRONTEND_URL || '*',
+//   credentials: true
+// }));
+
+const allowedOrigins = [
+  process.env.FRONTEND_URL,   // https://car-sample-azure.vercel.app
+  'http://localhost:5173',    // Local React/Vite development
+  'http://localhost:3000'     // Local Express/App testing
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow Postman, cURL, Mobile apps, & Server-to-Server (they send no Origin header)
+    if (!origin) return callback(null, true);
+
+    // Allow EXACT matches only (Blocks all other Vercel apps & external websites)
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // Reject everything else
+    return callback(new Error('CORS policy: Access denied for this origin.'));
+  },
+  credentials: true
+}));
 app.use(express.json());
 app.use(morgan('dev'));
 
@@ -33,11 +58,11 @@ app.get('/api', (req, res) => {
   res.status(200).json({ status: "healthy", message: "Vercel Serverless Express Engine Operational" });
 });
 
-//  Only listen to explicit ports locally!
-if (process.env.NODE_ENV !== 'production') {
+// Always listens when running 
+if (require.main === module) {
   const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log(`Local Development Engine running at http://localhost:${PORT}`);
+  app.listen(PORT, '0.0.0.0', () => {  //'0.0.0.0' tells Node.js to accept incoming network connections from outside the container (like NGINX) rather than restricting traffic strictly to localhost.
+    console.log(`Backend server listening on port ${PORT}`);
   });
 }
 
