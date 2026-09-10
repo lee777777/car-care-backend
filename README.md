@@ -8,16 +8,18 @@
 ### Architecture:
 This Express backend is built to support two execution models:
 1. **Active — Containerized Stack (Self-Hosted):**  
-   Runs locally on Bazzite OS via rootless Podman (`3x app` replicas, `NGINX` reverse proxy, `Cloudflare Tunnel`, `DuckDNS`, and `Let's Encrypt` SSL).
-2. **Fallback — Serverless Engine:**  
+   Runs locally on Bazzite OS via rootless Podman (`3x app` replicas, `NGINX` reverse proxy, and `LocalTunnel` persistent public egress).
+2. **Load Balancing & Proxying:**  
+  NGINX serves as the ingress point, managing load distribution across app replicas and acting as the **single source of truth for CORS headers**.
+3. **Fallback — Serverless Engine:**  
    Configured for direct serverless deployment on Vercel using `vercel.json` rewrites and `module.exports = app`.
    
 ---
 ### Domain & SSL Architecture
-* **Public Domain:** `api-carecare.duckdns.org` (Managed via DuckDNS)
-* **SSL/TLS Certificate:** Let's Encrypt SSL certificates generated via Certbot.
-* **Tunnel:** Cloudflare Quick Tunnel (`cloudflared`) routing HTTPS traffic internally to the containerized NGINX proxy.
-  
+* **Public Endpoint:** `https://****.loca.lt/api` (Exposed via `LocalTunnel`)
+* **Tunnel Bypass Header:** To bypass LocalTunnel's anti-phishing landing page programmatically, the frontend client injects the `bypass-tunnel-reminder: true` request header.
+* **CORS Management:** Configured in `nginx.conf` (`Access-Control-Allow-Origin`, `Access-Control-Allow-Methods`, `Access-Control-Allow-Headers`).
+
 ---
 ### Environment Variables (`.env`)
 Create a `.env` file in the root directory:

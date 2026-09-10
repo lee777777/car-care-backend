@@ -8,7 +8,6 @@ services:
 
   nginx:
     image: nginx:alpine
-    container_name: nginx_proxy
     restart: always
     ports:
       - "8080:80"   # High port for unprivileged rootless Podman
@@ -19,11 +18,13 @@ services:
     depends_on:
       - app
 
-  tunnel:
-    image: cloudflare/cloudflared:latest
-    container_name: cloudflare_tunnel
+  localtunnel:
+    image: efrecon/localtunnel
     restart: always
-    # Connects internally to NGINX over HTTPS on port 443
-    command: tunnel --no-tls-verify --url https://nginx:443
+    environment:
+      # Disables Node.js strict SSL verification inside the tunnel container
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
+    # Connects to NGINX over HTTP (port 80) and requests a custom subdomain
+    command: --host https://localtunnel.me --local-host nginx --port 80 --subdomain car-care-api
     depends_on:
       - nginx
